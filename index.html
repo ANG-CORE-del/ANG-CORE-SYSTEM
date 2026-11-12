@@ -143,6 +143,61 @@
       to { opacity: 1; transform: scale(1.2); }
     }
 
+    /* Приветственное модальное окно при первом запуске */
+    .welcome-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(5, 15, 25, 0.92);
+      backdrop-filter: blur(16px);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 100;
+      opacity: 1;
+      visibility: visible;
+      transition: opacity 0.6s ease, visibility 0.6s ease;
+    }
+
+    .welcome-overlay.hidden {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    .welcome-card {
+      background: rgba(10, 25, 40, 0.95);
+      border: 2px solid #00e5ff;
+      padding: 40px 50px;
+      border-radius: 20px;
+      box-shadow: 0 0 60px rgba(0, 229, 255, 0.6), inset 0 0 30px rgba(0, 229, 255, 0.3);
+      text-align: center;
+      max-width: 700px;
+      font-family: 'Orbitron', sans-serif;
+      animation: welcomeCardPulse 3s ease-in-out infinite alternate;
+    }
+
+    @keyframes welcomeCardPulse {
+      0% { box-shadow: 0 0 40px rgba(0, 229, 255, 0.4), inset 0 0 20px rgba(0, 229, 255, 0.2); }
+      100% { box-shadow: 0 0 70px rgba(0, 229, 255, 0.8), inset 0 0 40px rgba(0, 229, 255, 0.5); }
+    }
+
+    .welcome-title {
+      font-size: 22px;
+      font-weight: 900;
+      color: #ffffff;
+      line-height: 1.5;
+      text-shadow: 0 0 25px #00e5ff, 0 0 40px #0099ff;
+      letter-spacing: 2px;
+      margin-bottom: 20px;
+    }
+
+    .welcome-subtitle {
+      font-size: 13px;
+      color: #93c5fd;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+    }
+
     /* Левый блок с титрами */
     .star-wars-container {
       position: absolute;
@@ -446,7 +501,6 @@
       text-decoration: none;
     }
 
-    /* Технологичные иконки с разным цветом подсветки для каждого модуля */
     .sat-hub-icon {
       width: 100%;
       height: 100%;
@@ -460,7 +514,6 @@
       transition: all 0.3s ease;
     }
 
-    /* 1. Учет рабочего времени (Человек) — Неоново-голубой неон */
     .satellite-gear.sat-1 .sat-hub-icon {
       border: 3px solid #00e5ff;
       box-shadow: 0 0 20px rgba(0, 229, 255, 0.5);
@@ -470,7 +523,6 @@
       transform: scale(1.15);
     }
 
-    /* 2. Безопасное вождение (Руль) — Изумрудно-зеленый неон (безопасность) */
     .satellite-gear.sat-2 .sat-hub-icon {
       border: 3px solid #10b981;
       box-shadow: 0 0 20px rgba(16, 185, 129, 0.5);
@@ -480,7 +532,6 @@
       transform: scale(1.15);
     }
 
-    /* 3. Выдача ГСМ (Топливо) — Янтарно-оранжевый неон (энергия/топливо) */
     .satellite-gear.sat-3 .sat-hub-icon {
       border: 3px solid #f59e0b;
       box-shadow: 0 0 20px rgba(245, 158, 11, 0.5);
@@ -581,6 +632,14 @@
 <div class="scene" id="scene">
   
   <div class="ambient-neon-glow"></div>
+
+  <!-- Приветственное модальное окно -->
+  <div class="welcome-overlay" id="welcomeOverlay">
+    <div class="welcome-card">
+      <div class="welcome-title">ВАС ПРИВЕТСТВУЕТ МНОГОФУНКЦИОНАЛЬНАЯ СИСТЕМА<br>ANG-CORE-SYSTEM</div>
+      <div class="welcome-subtitle">ИНИЦИАЛИЗАЦИЯ ЭКОСИСТЕМЫ...</div>
+    </div>
+  </div>
 
   <div class="cars-container">
     <div class="car-light cyan" style="top: 12%; animation-duration: 1.4s; animation-delay: 0.1s;"></div>
@@ -740,7 +799,7 @@
     <!-- Внутренние сателлиты -->
     <div class="satellites-container" id="satellitesContainer">
       
-      <!-- Верхний сателлит (Учет рабочего времени -> Иконка человека 👤) -->
+      <!-- Верхний сателлит -->
       <div class="satellite-gear sat-1">
         <div class="gear-spinner">
           <svg class="gear-svg" viewBox="0 0 500 500">
@@ -770,7 +829,7 @@
         </div>
       </div>
       
-      <!-- Правый сателлит (Безопасное вождение -> Руль 🚗) -->
+      <!-- Правый сателлит -->
       <div class="satellite-gear sat-2">
         <div class="gear-spinner">
           <svg class="gear-svg" viewBox="0 0 500 500">
@@ -800,7 +859,7 @@
         </div>
       </div>
       
-      <!-- Левый сателлит (Выдача ГСМ -> Топливо ⛽) -->
+      <!-- Левый сателлит -->
       <div class="satellite-gear sat-3">
         <div class="gear-spinner">
           <svg class="gear-svg" viewBox="0 0 500 500">
@@ -908,10 +967,13 @@
   const clickTrigger = document.getElementById('clickTrigger');
   const satelliteGears = document.querySelectorAll('.satellite-gear');
   const satLinks = document.querySelectorAll('.sat-hub-link');
-  
+  const welcomeOverlay = document.getElementById('welcomeOverlay');
   const speedValElem = document.getElementById('speedVal');
 
-  let currentState = 1;
+  let currentState = 1; // 1 - режим ожидания, 2 - режим выбора, 3 - загрузка
+  let inactivityTimer = null;
+  const INACTIVITY_TIMEOUT = 30000; // 30 секунд (30 000 мс)
+  let lastActivityTime = 0;
 
   function initLinkSpeed() {
     const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
@@ -925,8 +987,27 @@
 
   initLinkSpeed();
 
-  gearHub.addEventListener('click', (e) => {
-    e.stopPropagation();
+  // Переход в режим выбора модулей
+  function activateChoiceMode() {
+    if (currentState === 1) {
+      currentState = 2;
+      scene.classList.add('active');
+      statusText.textContent = "ВЫБЕРИТЕ МОДУЛЬ СИСТЕМЫ";
+      clickTrigger.style.opacity = '0';
+      resetInactivityTimer();
+    }
+  }
+
+  // Автоматический скрыв приветствия через 3 секунды с переходом В РЕЖИМ ВЫБОРА
+  setTimeout(() => {
+    if (welcomeOverlay) {
+      welcomeOverlay.classList.add('hidden');
+    }
+    activateChoiceMode();
+  }, 3000);
+
+  // Возврат в режим ожидания по таймауту бездействия (1 минута)
+  function returnToIdleMode() {
     if (currentState === 2) {
       currentState = 1;
       scene.classList.remove('active', 'loading');
@@ -937,13 +1018,46 @@
       gearHub.innerHTML = 'ANG CORE';
       statusText.textContent = "РЕЖИМ ОЖИДАНИЯ";
       clickTrigger.style.opacity = '1';
+      clearTimeout(inactivityTimer);
+    }
+  }
+
+  // Сброс и перезапуск таймера бездействия
+  function resetInactivityTimer() {
+    clearTimeout(inactivityTimer);
+    if (currentState === 2) {
+      inactivityTimer = setTimeout(returnToIdleMode, INACTIVITY_TIMEOUT);
+    }
+  }
+
+  // Универсальная функция пробуждения и сброса таймера с троттлингом для mousemove
+  function handleUserActivity(e) {
+    const now = Date.now();
+    if (e.type === 'mousemove') {
+      if (now - lastActivityTime < 1000) return; // Проверка движения не чаще 1 раза в секунду
+    }
+    lastActivityTime = now;
+
+    resetInactivityTimer();
+    if (currentState === 1) {
+      activateChoiceMode();
+    }
+  }
+
+  // Клик по центральной кнопке в режиме выбора возвращает в режим ожидания
+  gearHub.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (currentState === 2) {
+      returnToIdleMode();
     }
   });
 
+  // Обработка кликов по модулям
   satLinks.forEach(link => {
     link.addEventListener('click', (e) => {
       e.preventDefault(); 
       e.stopPropagation();
+      clearTimeout(inactivityTimer);
       
       const targetUrl = link.getAttribute('href');
 
@@ -977,14 +1091,16 @@
     });
   });
 
-  scene.addEventListener('click', () => {
-    if (currentState === 1) {
-      currentState = 2;
-      scene.classList.add('active');
-      statusText.textContent = "ВЫБЕРИТЕ МОДУЛЬ СИСТЕМЫ";
-      clickTrigger.style.opacity = '0';
-    }
+  // Клик по сцене переводит из режима ожидания в режим выбора
+  scene.addEventListener('click', (e) => {
+    handleUserActivity(e);
   });
+
+  // Пробуждение и сброс таймера от мыши и клавиатуры
+  window.addEventListener('mousemove', handleUserActivity);
+  window.addEventListener('mousedown', handleUserActivity);
+  window.addEventListener('keydown', handleUserActivity);
+  window.addEventListener('touchstart', handleUserActivity);
 </script>
 
 </body>
